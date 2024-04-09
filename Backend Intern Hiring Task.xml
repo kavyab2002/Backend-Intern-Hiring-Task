@@ -1,0 +1,83 @@
+Task to build a Library Management System, specifically the backend layer of the application, supposesing 
+to build the API Layer of this system, as mentioned in the requirements below
+
+# main.py
+from fastapi import FastAPI, HTTPException
+from pymongo import MongoClient
+from pydantic import BaseModel, Field
+from bson import ObjectId
+
+# Create a FastAPI instance
+app = FastAPI()
+
+# Connect to MongoDB Atlas
+client = MongoClient("<your MongoDB Atlas connection string>")
+db = client["library"]  # Assuming your database name is 'library'
+students_collection = db["students"]  # Assuming your collection name is 'students'
+
+# Define Pydantic models for request and response bodies
+class StudentIn(BaseModel):
+    name: str = Field(..., description="Name of the student")
+    age: int = Field(..., description="Age of the student")
+
+class StudentOut(BaseModel):
+    id: str = Field(..., description="ID of the student")
+    name: str = Field(..., description="Name of the student")
+    age: int = Field(..., description="Age of the student")
+
+# Define API endpoints
+@app.post("/students/", response_model=StudentOut, status_code=201)
+async def create_student(student: StudentIn):
+    inserted_student = students_collection.insert_one(student.dict())
+    return {"id": str(inserted_student.inserted_id), **student.dict()}
+
+@app.get("/students/{student_id}", response_model=StudentOut)
+async def read_student(student_id: str):
+    student_data = students_collection.find_one({"_id": ObjectId(student_id)})
+    if student_data:
+        return {"id": str(student_data["_id"]), **student_data}
+    else:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+# Deployment
+# Deploy your FastAPI application to a cloud platform of your choice
+This is a basic setup that allows creating and retrieving students from the MongoDB database. Now let's deploy this application to a cloud platform. For demonstration purposes, I'll deploy it on Render.
+
+Created a new directory for your project and place the main.py file inside it.
+Created a requirements.txt file with the following content:
+
+fastapi
+uvicorn
+pymongo
+
+Created a Dockerfile with the following content:
+bash
+
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.8
+COPY ./app /app
+
+Created an account on Render and create a new web service.
+Choose the repository where you've pushed your project.
+Specify the Dockerfile path as / and the start command as uvicorn main:app --host=0.0.0.0 --port=${PORT:-8000}.
+
+Click on "Create Web Service" to deploy your FastAPI application.
+After deployment, you will receive the base URL of your application from Render. You need to submit this base URL to the task submission form.
+
+Now, let's test the APIs using cURL commands.
+
+To create a new student:
+
+curl -X 'POST' \
+  'https://your-app-url/students/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "name": "John Doe",
+  "age": 20
+}'
+
+To retrieve a student by ID:
+
+curl -X 'GET' \
+  'https://your-app-url/students/{student_id}' \
+  -H 'accept: application/json'
